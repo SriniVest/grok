@@ -514,8 +514,8 @@ bool opj_dwt_decode(opj_tcd_tilecomp_t* tilec,
 					uint32_t numres,
 					uint32_t numThreads)
 {
-  //  if (opj_tile_buf_is_decode_region(tilec->buf))
- //       return opj_dwt_region_decode53(tilec, numres);
+    if (opj_tile_buf_is_decode_region(tilec->buf))
+        return opj_dwt_region_decode53(tilec, numres, numThreads);
     return opj_dwt_decode_tile(tilec, numres, &opj_dwt_decode_1,numThreads);
 }
 
@@ -924,6 +924,12 @@ bool opj_dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec,
 						uint32_t numres,
 						uint32_t numThreads)
 {
+	if (numres == 1U) {
+		return true;
+	}
+	if (opj_tile_buf_is_decode_region(tilec->buf))
+		return opj_dwt_region_decode97(tilec, numres, numThreads);
+
 	int rc = 0;
 	auto tileBuf = (float*)opj_tile_buf_get_ptr(tilec->buf, 0, 0, 0, 0);
 	Barrier decode_dwt_barrier(numThreads);
@@ -949,9 +955,6 @@ bool opj_dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec,
 			uint32_t rh = (res->y1 - res->y0);	/* height of the resolution level computed */
 
 			uint32_t w = (tilec->x1 - tilec->x0);
-
-			//  if (opj_tile_buf_is_decode_region(tilec->buf))
-			//      return opj_dwt_region_decode97(tilec, numres);
 
 			h.wavelet = (opj_v4_t*)opj_aligned_malloc((opj_dwt_max_resolution(res, numResolutions) + 5) * sizeof(opj_v4_t));
 			if (!h.wavelet) {
@@ -993,12 +996,11 @@ bool opj_dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec,
 				}
 				decode_dwt_barrier.arrive_and_wait();
 				
-				if (j > 0 && (rh & 0x03)) {
-					int32_t jCleanup = rh & 0x03;
+				if (j > 0 ) {
 					opj_v4dwt_interleave_h(&h, aj, (int32_t)w, (int32_t)bufsize);
 					opj_v4dwt_decode(&h);
 					for (int32_t k = (int32_t)rw; k-- > 0;) {
-						switch (jCleanup) {
+						switch (j) {
 						case 3:
 							aj[k + (int32_t)(w << 1)] = h.wavelet[k].f[2];
 						case 2:
@@ -1027,14 +1029,12 @@ bool opj_dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec,
 					aj += (numThreads <<2);
 				}
 				
-				if (j > 0 && (rw & 0x03)) {
-					int32_t jCleanup = rw & 0x03;
-
-					opj_v4dwt_interleave_v(&v, aj, (int32_t)w, jCleanup);
+				if (j > 0) {
+					opj_v4dwt_interleave_v(&v, aj, (int32_t)w, j);
 					opj_v4dwt_decode(&v);
 
 					for (uint32_t k = 0; k < rh; ++k) {
-						memcpy(&aj[k*w], &v.wavelet[k], (size_t)jCleanup * sizeof(float));
+						memcpy(&aj[k*w], &v.wavelet[k], (size_t)j * sizeof(float));
 					}
 				}
 				

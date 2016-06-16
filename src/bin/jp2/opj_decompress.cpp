@@ -1,4 +1,22 @@
 /*
+*    Copyright (C) 2016 Grok Image Compression Inc.
+*
+*    This source code is free software: you can redistribute it and/or  modify
+*    it under the terms of the GNU Affero General Public License, version 3,
+*    as published by the Free Software Foundation.
+*
+*    This source code is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU Affero General Public License for more details.
+*
+*    You should have received a copy of the GNU Affero General Public License
+*    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+*
+*    This source code incorporates work covered by the following copyright and
+*    permission notice:
+*
  * The copyright in this software is being made available under the 2-clauses
  * BSD License, included below. This software may be subject to other third
  * party and contributor rights, including patent rights, and no such rights
@@ -37,13 +55,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+
+extern "C" {
+
 #include "opj_apps_config.h"
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -73,13 +89,13 @@
 #ifdef OPJ_HAVE_LIBLCMS2
 #include <lcms2.h>
 #endif
-#ifdef OPJ_HAVE_LIBLCMS1
-#include <lcms.h>
-#endif
 #include "color.h"
 
 #include "format_defs.h"
 #include "opj_string.h"
+
+}
+
 
 typedef struct dircnt {
     /** Buffer for holding images read from Directory*/
@@ -402,7 +418,6 @@ char get_next_file(int imageno, dircnt_t *dirptr, img_fol_t *img_fol, opj_decomp
 
 /* -------------------------------------------------------------------------- */
 #define JP2_RFC3745_MAGIC "\x00\x00\x00\x0c\x6a\x50\x20\x20\x0d\x0a\x87\x0a"
-#define JP2_MAGIC "\x0d\x0a\x87\x0a"
 /* position 45: "\xff\x52" */
 #define J2K_CODESTREAM_MAGIC "\xff\x4f\xff\x51"
 
@@ -432,7 +447,7 @@ static int infile_format(const char *fname)
     if (ext_format == JPT_CFMT)
         return JPT_CFMT;
 
-    if (memcmp(buf, JP2_RFC3745_MAGIC, 12) == 0 || memcmp(buf, JP2_MAGIC, 4) == 0) {
+    if (memcmp(buf, JP2_RFC3745_MAGIC, 12) == 0 ) {
         magic_format = JP2_CFMT;
         magic_s = ".jp2";
     } else if (memcmp(buf, J2K_CODESTREAM_MAGIC, 4) == 0) {
@@ -1259,7 +1274,7 @@ int plugin_post_decode_callback(opj_plugin_decode_callback_info_t* info) {
 	}
 
 	if (image->icc_profile_buf) {
-#if defined(OPJ_HAVE_LIBLCMS1) || defined(OPJ_HAVE_LIBLCMS2)
+#if defined(OPJ_HAVE_LIBLCMS2)
 		if (image->icc_profile_len)
 			color_apply_icc_profile(image);
 		else

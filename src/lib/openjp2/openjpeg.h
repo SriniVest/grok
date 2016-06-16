@@ -110,6 +110,7 @@ defined with this macro as being exported.
 #	endif /* OPJ_EXPORTS */
 #endif /* !OPJ_STATIC || !_WIN32 */
 
+#include "opj_config.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -435,6 +436,18 @@ typedef struct opj_cparameters {
     int32_t cod_format;
     /*@}*/
 
+	/**
+	* DEPRECATED: use RSIZ, OPJ_PROFILE_* and MAX_COMP_SIZE instead
+	* Digital Cinema compliance 0-not compliant, 1-compliant
+	* */
+	OPJ_CINEMA_MODE cp_cinema;
+
+	/**
+	* DEPRECATED: use RSIZ, OPJ_PROFILE_* and OPJ_EXTENSION_* instead
+	* Profile name
+	* */
+	OPJ_RSIZ_CAPABILITIES cp_rsiz;
+
     /**
      * Maximum size (in bytes) for each component.
      * If == 0, component size limitation is not considered
@@ -461,6 +474,12 @@ typedef struct opj_cparameters {
     /** RSIZ value
         To be used to combine OPJ_PROFILE_*, OPJ_EXTENSION_* and (sub)levels values. */
     uint16_t rsiz;
+
+	bool  write_capture_resolution;
+	double capture_resolution[2];
+
+	bool  write_display_resolution;
+	double display_resolution[2];
 
 	uint32_t numThreads;
 } opj_cparameters_t;
@@ -545,18 +564,24 @@ typedef void * opj_codec_t;
 /*
  * Callback function prototype for read function
  */
-typedef size_t (* opj_stream_read_fn) (void * p_buffer, size_t p_nb_bytes, void * p_user_data) ;
+typedef size_t (* opj_stream_read_fn) (void * p_buffer, 
+										size_t p_nb_bytes,
+										void * p_user_data) ;
 
 /*
 * Callback function prototype for zero copy read function
 */
-typedef size_t(*opj_stream_zero_copy_read_fn) (void ** p_buffer, size_t p_nb_bytes, void * p_user_data);
+typedef size_t(*opj_stream_zero_copy_read_fn) (void ** p_buffer, 
+												size_t p_nb_bytes,
+												void * p_user_data);
 
 
 /*
  * Callback function prototype for write function
  */
-typedef size_t (* opj_stream_write_fn) (void * p_buffer, size_t p_nb_bytes, void * p_user_data) ;
+typedef size_t (* opj_stream_write_fn) (void * p_buffer, 
+										size_t p_nb_bytes,
+										void * p_user_data) ;
 
 /*
  * Callback function prototype for skip function
@@ -638,6 +663,10 @@ typedef struct opj_image {
     uint8_t *icc_profile_buf;
     /** size of ICC profile */
     uint32_t icc_profile_len;
+
+	double capture_resolution[2];
+	double display_resolution[2];
+
 } opj_image_t;
 
 

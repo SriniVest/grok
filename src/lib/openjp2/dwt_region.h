@@ -79,7 +79,9 @@ Apply a reversible inverse DWT transform to a component of an image.
 @param tilec Tile component information (current tile)
 @param numres Number of resolution levels to decode
 */
-bool opj_dwt_region_decode53(opj_tcd_tilecomp_t* tilec, uint32_t numres);
+bool opj_dwt_region_decode53(opj_tcd_tilecomp_t* tilec, 
+								uint32_t numres,
+								uint32_t numThreads);
 
 
 
@@ -89,7 +91,9 @@ Apply an irreversible inverse DWT transform to a component of an image.
 @param tilec Tile component information (current tile)
 @param numres Number of resolution levels to decode
 */
-bool opj_dwt_region_decode97(opj_tcd_tilecomp_t* restrict tilec, uint32_t numres);
+bool opj_dwt_region_decode97(opj_tcd_tilecomp_t* restrict tilec, 
+								uint32_t numres,
+								uint32_t numThreads);
 
 
 

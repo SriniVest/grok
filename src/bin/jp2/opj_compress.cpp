@@ -1,4 +1,22 @@
 /*
+*    Copyright (C) 2016 Grok Image Compression Inc.
+*
+*    This source code is free software: you can redistribute it and/or  modify
+*    it under the terms of the GNU Affero General Public License, version 3,
+*    as published by the Free Software Foundation.
+*
+*    This source code is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU Affero General Public License for more details.
+*
+*    You should have received a copy of the GNU Affero General Public License
+*    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+*
+*    This source code incorporates work covered by the following copyright and
+*    permission notice:
+*
  * The copyright in this software is being made available under the 2-clauses
  * BSD License, included below. This software may be subject to other third
  * party and contributor rights, including patent rights, and no such rights
@@ -39,6 +57,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+extern "C" {
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -69,6 +90,9 @@
 #include "convert.h"
 #include "format_defs.h"
 #include "opj_string.h"
+
+
+}
 
 
 #ifdef _WIN32
@@ -225,10 +249,6 @@ static void encode_help_display(void)
     fprintf(stdout,"    Divide packets of every tile into tile-parts.\n");
     fprintf(stdout,"    Division is made by grouping Resolutions (R), Layers (L)\n");
     fprintf(stdout,"    or Components (C).\n");
-#ifdef FIXME_INDEX
-    fprintf(stdout,"-x  <index file>\n");
-    fprintf(stdout,"    Create an index file.\n");
-#endif /*FIXME_INDEX*/
     fprintf(stdout,"-ROI c=<component index>,U=<upshifting value>\n");
     fprintf(stdout,"    Quantization indices upshifted for a component. \n");
     fprintf(stdout,"    Warning: This option does not implement the usual ROI (Region of Interest).\n");
@@ -259,47 +279,16 @@ static void encode_help_display(void)
     fprintf(stdout,"-cinema4K\n");
     fprintf(stdout,"    Digital Cinema 4K profile compliant codestream.\n");
     fprintf(stdout,"	Frames per second not required. Default value is 24fps.\n");
-    fprintf(stdout,"-jpip\n");
-    fprintf(stdout,"    Write jpip codestream index box in JP2 output file.\n");
-    fprintf(stdout,"    Currently supports only RPCL order.\n");
     fprintf(stdout,"-C <comment>\n");
     fprintf(stdout,"    Add <comment> in the comment marker segment.\n");
+	fprintf(stdout, "-Q <capture resolution X,capture resolution Y>\n");
+	fprintf(stdout, "    Capture resolution in pixels/metre, in double precision.\n");
+	fprintf(stdout, "    These values will override the resolution stored in the input image, if present \n");
+	fprintf(stdout, "    unless the special values <0,0> are passed in, in which case \n");
+	fprintf(stdout, "    the image resolution will be used.\n");
+	fprintf(stdout, "-D <display resolution X,display resolution Y>\n");
+	fprintf(stdout, "    Display resolution in pixels/metre, in double precision.\n");
     fprintf(stdout,"\n");
-#ifdef FIXME_INDEX
-    fprintf(stdout,"Index structure:\n");
-    fprintf(stdout,"----------------\n");
-    fprintf(stdout,"\n");
-    fprintf(stdout,"Image_height Image_width\n");
-    fprintf(stdout,"progression order\n");
-    fprintf(stdout,"Tiles_size_X Tiles_size_Y\n");
-    fprintf(stdout,"Tiles_nb_X Tiles_nb_Y\n");
-    fprintf(stdout,"Components_nb\n");
-    fprintf(stdout,"Layers_nb\n");
-    fprintf(stdout,"decomposition_levels\n");
-    fprintf(stdout,"[Precincts_size_X_res_Nr Precincts_size_Y_res_Nr]...\n");
-    fprintf(stdout,"   [Precincts_size_X_res_0 Precincts_size_Y_res_0]\n");
-    fprintf(stdout,"Main_header_start_position\n");
-    fprintf(stdout,"Main_header_end_position\n");
-    fprintf(stdout,"Codestream_size\n");
-    fprintf(stdout,"\n");
-    fprintf(stdout,"INFO ON TILES\n");
-    fprintf(stdout,"tileno start_pos end_hd end_tile nbparts disto nbpix disto/nbpix\n");
-    fprintf(stdout,"Tile_0 start_pos end_Theader end_pos NumParts TotalDisto NumPix MaxMSE\n");
-    fprintf(stdout,"Tile_1   ''           ''        ''        ''       ''    ''      ''\n");
-    fprintf(stdout,"...\n");
-    fprintf(stdout,"Tile_Nt   ''           ''        ''        ''       ''    ''     ''\n");
-    fprintf(stdout,"...\n");
-    fprintf(stdout,"TILE 0 DETAILS\n");
-    fprintf(stdout,"part_nb tileno num_packs start_pos end_tph_pos end_pos\n");
-    fprintf(stdout,"...\n");
-    fprintf(stdout,"Progression_string\n");
-    fprintf(stdout,"pack_nb tileno layno resno compno precno start_pos end_ph_pos end_pos disto\n");
-    fprintf(stdout,"Tpacket_0 Tile layer res. comp. prec. start_pos end_pos disto\n");
-    fprintf(stdout,"...\n");
-    fprintf(stdout,"Tpacket_Np ''   ''    ''   ''    ''       ''       ''     ''\n");
-    fprintf(stdout,"MaxDisto\n");
-    fprintf(stdout,"TotalDisto\n\n");
-#endif /*FIXME_INDEX*/
 }
 
 static OPJ_PROG_ORDER give_progression(const char progression[4])
@@ -456,11 +445,13 @@ static int parse_cmdline_encoder_ex(int argc, char **argv, opj_cparameters_t *pa
         {"mct",REQ_ARG, NULL, 'Y'},
 		{ "PluginPath", REQ_ARG, NULL, 'g' },
 		{ "NumThreads", REQ_ARG, NULL, 'H' },
+		{ "CaptureRes", REQ_ARG, NULL, 'Q' },
+		{ "DispayRes", REQ_ARG, NULL,  'D' },
     };
 
     /* parse the command line */
 
-	const char optlist[] = "a:g:i:o:r:q:n:b:c:t:p:s:SEM:x:R:d:T:If:P:C:F:u:H:h";
+	const char optlist[] = "a:g:i:o:r:q:n:b:c:t:p:s:SEM:R:d:T:If:P:C:F:u:H:h";
     totlen=sizeof(long_option);
     img_fol->set_out_format=0;
     raw_cp->rawWidth = 0;
@@ -555,8 +546,6 @@ static int parse_cmdline_encoder_ex(int argc, char **argv, opj_cparameters_t *pa
         break;
 
         /* ----------------------------------------------------- */
-
-
         case 'F': {		/* Raw image format parameters */
             bool wrong = false;
             char *substr1;
@@ -663,7 +652,6 @@ static int parse_cmdline_encoder_ex(int argc, char **argv, opj_cparameters_t *pa
         }
         break;
 
-        /* dda */
         /* ----------------------------------------------------- */
 
         case 'f': {		/* mod fixed_quality (before : -q) */
@@ -766,20 +754,6 @@ static int parse_cmdline_encoder_ex(int argc, char **argv, opj_cparameters_t *pa
             }
             parameters->cblockw_init = cblockw_init;
             parameters->cblockh_init = cblockh_init;
-        }
-        break;
-
-        /* ----------------------------------------------------- */
-
-        case 'x': {		/* creation of index file */
-            if (opj_strcpy_s(indexfilename, indexfilename_size, opj_optarg) != 0) {
-                return 1;
-            }
-            /* FIXME ADE INDEX >> */
-            fprintf(stderr,
-                    "[WARNING] Index file generation is currently broken.\n"
-                    "          '-x' option ignored.\n");
-            /* << FIXME ADE INDEX */
         }
         break;
 
@@ -1078,6 +1052,23 @@ static int parse_cmdline_encoder_ex(int argc, char **argv, opj_cparameters_t *pa
 
 		case 'H':
 			sscanf(opj_optarg, "%u", &(parameters->numThreads));
+			break;
+
+		case 'Q':
+			if (sscanf(opj_optarg, "%lf,%lf", parameters->capture_resolution,
+											parameters->capture_resolution+1) != 2) {
+				fprintf(stderr, "-Q 'capture resolution' argument error !! [-Q X0,Y0]");
+				return 1;
+			}
+			parameters->write_capture_resolution = true;
+			break;
+		case 'D':
+			if (sscanf(opj_optarg, "%lf,%lf", parameters->display_resolution,
+				parameters->display_resolution + 1) != 2) {
+				fprintf(stderr, "-D 'display resolution' argument error !! [-D X0,Y0]");
+				return 1;
+			}
+			parameters->write_display_resolution = true;
 			break;
 
         /* ------------------------------------------------------ */

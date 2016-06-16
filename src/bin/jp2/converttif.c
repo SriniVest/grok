@@ -1,4 +1,22 @@
 /*
+*    Copyright (C) 2016 Grok Image Compression Inc.
+*
+*    This source code is free software: you can redistribute it and/or  modify
+*    it under the terms of the GNU Affero General Public License, version 3,
+*    as published by the Free Software Foundation.
+*
+*    This source code is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU Affero General Public License for more details.
+*
+*    You should have received a copy of the GNU Affero General Public License
+*    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+*
+*    This source code incorporates work covered by the following copyright and
+*    permission notice:
+*
  * The copyright in this software is being made available under the 2-clauses
  * BSD License, included below. This software may be subject to other third
  * party and contributor rights, including patent rights, and no such rights
@@ -697,6 +715,14 @@ int imagetotif(opj_image_t * image, const char *outfile)
     TIFFSetField(tif, TIFFTAG_PHOTOMETRIC, tiPhoto);
     TIFFSetField(tif, TIFFTAG_ROWSPERSTRIP, 1);
 
+	if (image->capture_resolution[0] > 0 && image->capture_resolution[1] > 0) {
+		TIFFSetField(tif, TIFFTAG_RESOLUTIONUNIT, 3); // cm
+		for (int i = 0; i < 2; ++i) {
+			TIFFSetField(tif, TIFFTAG_XRESOLUTION, image->capture_resolution[0]/100);
+			TIFFSetField(tif, TIFFTAG_YRESOLUTION, image->capture_resolution[1]/100);
+		}
+	}
+
     strip_size = TIFFStripSize(tif);
     rowStride = ((size_t)width * numcomps * (size_t)tif_bps + 7U) / 8U;
     if (rowStride != (size_t)strip_size) {
@@ -1218,6 +1244,33 @@ static void tif_16uto32s(const uint16_t* pSrc, int32_t* pDst, size_t length)
     }
 }
 
+static void set_resolution(double* res, float resx, float resy, short resUnit) {
+	// resolution is in pels / metre
+	res[0] = resx;
+	res[1] = resy;
+
+	switch (resUnit) {
+		// no known units. Used for images with non-square pixels
+	case 1:
+		break;
+		// inches  
+	case 2:
+		//2.54 cm / inch
+		res[0] *= 100 / 2.54;
+		res[1] *= 100 / 2.54;
+		break;
+		// cm
+	case 3:
+		res[0] *= 100;
+		res[1] *= 100;
+		break;
+	default:
+		res[0] = 0;
+		res[1] = 0;
+		break;
+	}
+}
+
 /*
  * libtiff/tif_getimage.c : 1,2,4,8,16 bitspersample accepted
  * CINEMA                 : 12 bit precision
@@ -1235,8 +1288,10 @@ opj_image_t* tiftoimage(const char *filename, opj_cparameters_t *parameters)
     opj_image_cmptparm_t cmptparm[4]; /* RGBA */
     opj_image_t *image = NULL;
     int has_alpha = 0;
-    unsigned short tiBps, tiPhoto, tiSf, tiSpp, tiPC;
-    unsigned int tiWidth, tiHeight;
+	unsigned short tiBps=0, tiPhoto=0, tiSf=0, tiSpp=0, tiPC=0;
+	short tiResUnit=0;
+	float tiXRes=0, tiYRes=0;
+    unsigned int tiWidth=0, tiHeight=0;
     bool is_cinema = OPJ_IS_CINEMA(parameters->rsiz);
     convert_XXx32s_C1R cvtTifTo32s = NULL;
     convert_32s_CXPX cvtCxToPx = NULL;
@@ -1261,6 +1316,32 @@ opj_image_t* tiftoimage(const char *filename, opj_cparameters_t *parameters)
     TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &tiSpp);
     TIFFGetField(tif, TIFFTAG_PHOTOMETRIC, &tiPhoto);
     TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &tiPC);
+	TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &tiPC);
+
+	// if write_capture_resolution is enabled but capture_resolution equals 0,0, then
+	// use image resolution if present
+	if (parameters->write_capture_resolution &&
+		parameters->capture_resolution[0] == 0 &&
+			parameters->capture_resolution[1] == 0) {
+
+		TIFFGetField(tif, TIFFTAG_XRESOLUTION, &tiXRes);
+		TIFFGetField(tif, TIFFTAG_YRESOLUTION, &tiYRes);
+		TIFFGetField(tif, TIFFTAG_RESOLUTIONUNIT, &tiResUnit);
+		set_resolution(parameters->capture_resolution, tiXRes, tiYRes, tiResUnit);
+	}
+
+	// if write_display_resolution is enabled but display_resolution equals 0,0, then
+	// use image resolution if present
+	if (parameters->write_display_resolution &&
+		parameters->display_resolution[0] == 0 &&
+		parameters->display_resolution[1] == 0) {
+
+		TIFFGetField(tif, TIFFTAG_XRESOLUTION, &tiXRes);
+		TIFFGetField(tif, TIFFTAG_YRESOLUTION, &tiYRes);
+		TIFFGetField(tif, TIFFTAG_RESOLUTIONUNIT, &tiResUnit);
+		set_resolution(parameters->display_resolution, tiXRes, tiYRes, tiResUnit);
+	}
+
     w= (int)tiWidth;
     h= (int)tiHeight;
 
